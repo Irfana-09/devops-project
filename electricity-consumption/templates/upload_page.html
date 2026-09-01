@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Meter - VoltWise</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='language.js') }}"></script>
+    <script>
+        window.addEventListener("load", function(){
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+
+        function calculateBill() {
+            const current = parseFloat(document.getElementById('current_reading').value) || 0;
+            const previous = parseFloat(document.getElementById('previous_reading').value) || 0;
+            
+            const units = (current - previous).toFixed(2);
+            const displayUnits = Math.max(0, current - previous).toFixed(2);
+            const amount = (displayUnits * 5).toFixed(2);
+            
+            document.getElementById('units_display').innerText = displayUnits;
+            document.getElementById('amount_display').innerText = amount;
+            document.getElementById('units_input').value = units;
+            
+            // Highlight units if negative
+            if (parseFloat(units) < 0) {
+                document.getElementById('units_display').parentElement.style.color = "#ff4d4d";
+            } else {
+                document.getElementById('units_display').parentElement.style.color = "inherit";
+            }
+        }
+
+        function previewImage(event){
+            let img = document.getElementById("preview");
+            let dropZone = document.getElementById("drop_zone");
+            let dropText = document.getElementById("drop_text");
+            
+            if (event.target.files && event.target.files[0]) {
+                img.src = URL.createObjectURL(event.target.files[0]);
+                img.style.display = "block";
+                img.style.margin = "20px auto";
+                
+                dropZone.style.padding = "10px";
+                dropZone.style.borderStyle = "solid";
+                dropText.innerText = "✓ Image Selected (Click to change)";
+                dropText.style.color = "var(--accent-color)";
+            }
+        }
+    </script>
+</head>
+<body style="display:flex; flex-direction: column; justify-content:center; align-items:center; min-height:100vh; padding: 20px; box-sizing: border-box; background: var(--bg-color);">
+
+<div style="margin-bottom: 32px; text-align: center;">
+    <div style="font-size: 3rem; color: var(--accent-color); margin-bottom: 16px;"><i class="fas fa-camera"></i></div>
+    <h1 style="font-size: 2.25rem; font-weight: 800; letter-spacing: -1px; margin: 0;" data-i18n="scan_meter">Scan Meter</h1>
+</div>
+
+<div class="card" style="width:100%; max-width:550px; padding: 40px; border-radius: 20px;">
+    {% if not scanned %}
+    <!-- UPLOAD STEP -->
+    <div class="card-title"><i class="fas fa-cloud-upload-alt" style="color: var(--accent-color);"></i> <span data-i18n="upload_meter_photo">Upload Meter Photo</span></div>
+    <p style="color: var(--secondary-text); margin-bottom: 32px;" data-i18n="scan_meter_desc">Upload a clear photo of your electricity meter. Our AI will automatically detect the current units.</p>
+    
+    <form method="POST" action="/upload-meter" enctype="multipart/form-data">
+        <input type="hidden" name="user_id" value="{{ user_id }}">
+        <div id="drop_zone" style="border: 2px dashed var(--border-color); padding: 60px 20px; border-radius: 16px; cursor: pointer; position: relative; transition: all 0.3s; background: rgba(59, 130, 246, 0.02); text-align: center;">
+            <input type="file" name="meter_photo" onchange="previewImage(event)" required 
+                   style="opacity: 0; position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer;">
+            <i class="fas fa-image" style="font-size: 2.5rem; color: var(--border-color); margin-bottom: 16px; display: block;"></i>
+            <p id="drop_text" style="color: var(--secondary-text); font-weight: 500;" data-i18n="click_drag_drop">Click or drag & drop meter photo</p>
+        </div>
+        <img id="preview" style="display:none; width: 100%; max-height: 300px; object-fit: contain; border-radius: 12px; margin-top: 24px; border: 1px solid var(--border-color);">
+        <button type="submit" class="submit-btn" style="margin-top: 32px;" data-i18n="scan_reading">
+            <i class="fas fa-magic"></i> Scan Reading
+        </button>
+    </form>
+    
+    {% else %}
+    <!-- VERIFICATION / EDIT STEP -->
+    <div class="card-title"><i class="fas fa-check-circle" style="color: #10b981;"></i> <span data-i18n="verify_reading">Verify Reading</span></div>
+    
+    {% if current_reading == 0 %}
+    <div id="scan_alert" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); padding: 16px; border-radius: 12px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px;">
+        <div style="background: #ef4444; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <i class="fas fa-exclamation-circle" style="font-size: 1.25rem;"></i>
+        </div>
+        <div>
+             <h4 style="margin: 0; color: #ef4444; font-weight: 700;">Scanning Failed</h4>
+             <p style="color: var(--secondary-text); margin: 4px 0 0; font-size: 0.9rem;">We couldn't detect the digits clearly. Please check the value on your meter and enter it manually below.</p>
+             {% if potential_readings %}
+             <div style="margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px;">
+                 <span style="font-size: 0.8rem; color: var(--secondary-text); width: 100%;">Did you mean?</span>
+                 {% for reading in potential_readings %}
+                 <button type="button" onclick="document.getElementById('current_reading').value='{{ reading }}'; calculateBill();" 
+                         style="background: rgba(59, 130, 246, 0.1); border: 1px solid var(--accent-color); color: var(--accent-color); padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s;">
+                     {{ reading }}
+                 </button>
+                 {% endfor %}
+             </div>
+             {% endif %}
+         </div>
+    </div>
+    {% else %}
+    <p style="color: var(--secondary-text); margin-bottom: 24px;" data-i18n="verify_reading_desc">We've detected your reading. Please verify and confirm to calculate your bill.</p>
+    {% endif %}
+    
+    <form method="POST" action="/confirm-bill">
+        <input type="hidden" name="user_id" value="{{ user_id }}">
+        <input type="hidden" name="units" id="units_input" value="{{ [current_reading - previous_reading, 0]|max }}">
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+            <div>
+                <label data-i18n="prev_reading">Previous Reading (kWh)</label>
+                <input type="number" step="0.01" id="previous_reading" value="{{ previous_reading }}" 
+                       oninput="calculateBill()" required readonly style="opacity: 0.7; cursor: not-allowed;">
+            </div>
+            <div>
+                <label data-i18n="curr_reading">Current Reading (kWh)</label>
+                <input type="number" step="0.01" name="current_reading" id="current_reading" value="{{ current_reading }}" 
+                       oninput="calculateBill()" required autofocus style="border-color: var(--accent-color); font-weight: 600;">
+            </div>
+        </div>
+
+        <div style="background: rgba(59, 130, 246, 0.05); padding: 24px; border-radius: 16px; margin-bottom: 32px; border: 1px solid rgba(59, 130, 246, 0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <span style="color: var(--secondary-text);" data-i18n="monthly_units">Units Consumed</span>
+                <span style="font-weight: 700;"><span id="units_display">{{ [current_reading - previous_reading, 0]|max }}</span> kWh</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: var(--secondary-text);" data-i18n="est_monthly_bill">Estimated Bill</span>
+                <span style="font-size: 1.5rem; color: var(--accent-color); font-weight: 800;">₹<span id="amount_display">{{ amount }}</span></span>
+            </div>
+        </div>
+
+        <button type="submit" class="submit-btn" data-i18n="confirm_bill">
+            <i class="fas fa-save"></i> Confirm & Save Bill
+        </button>
+        <div style="text-align: center; margin-top: 16px;">
+            <a href="/upload-page/{{ user_id }}" style="color: var(--secondary-text); text-decoration: none; font-size: 0.9rem;" data-i18n="scan_another">
+                <i class="fas fa-redo"></i> Scan another image
+            </a>
+        </div>
+    </form>
+    {% endif %}
+
+    <div style="margin-top:32px; padding-top: 24px; border-top: 1px solid var(--border-color); text-align:center;">
+        <a href="/dashboard/{{ user_id }}" style="color: var(--accent-color); text-decoration:none; font-weight:600;" data-i18n="cancel_return">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div style="margin-top: 40px; color: var(--secondary-text); font-size: 0.85rem;">
+    &copy; 2026 VoltWise &bull; AI Powered Energy Optimization
+</div>
+
+</body>
+</html>

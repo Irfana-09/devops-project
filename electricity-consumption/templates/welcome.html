@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoltWise - Smart Electricity Optimizer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='language.js') }}"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            background: var(--bg-color);
+        }
+        
+        /* Splash Screen Styles */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .splash-logo {
+            font-size: 4rem;
+            color: var(--accent-color);
+            margin-bottom: 24px;
+            animation: splashPulse 2s infinite ease-in-out;
+        }
+
+        .splash-name {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: var(--text-color);
+        }
+
+        .loading-bar {
+            width: 180px;
+            height: 4px;
+            background: var(--input-bg);
+            border-radius: 10px;
+            margin-top: 32px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loading-progress {
+            width: 0%;
+            height: 100%;
+            background: var(--accent-color);
+            box-shadow: 0 0 12px var(--accent-color);
+            animation: progress 2s forwards cubic-bezier(0.65, 0, 0.35, 1);
+        }
+
+        @keyframes splashPulse {
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0px var(--accent-color)); }
+            50% { transform: scale(1.1); filter: drop-shadow(0 0 20px var(--accent-color)); }
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        .hidden {
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(1.1);
+        }
+
+        /* Language Selection Screen */
+        #language-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9998;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.6s ease;
+            transform: translateY(20px);
+        }
+
+        #language-screen.visible {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .lang-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 32px;
+            width: 100%;
+            max-width: 600px;
+            padding: 0 20px;
+        }
+
+        .lang-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--secondary-text);
+            padding: 24px 16px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .lang-btn .icon {
+            font-size: 1.5rem;
+        }
+
+        .lang-btn .name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .lang-btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            background: rgba(59, 130, 246, 0.05);
+            transform: translateY(-4px);
+        }
+
+        .lang-btn.selected {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Main Content */
+        #main-content {
+            opacity: 0;
+            transition: all 0.8s ease;
+            width: 100%;
+            max-width: 450px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            transform: translateY(20px);
+        }
+
+        #main-content.visible {
+            opacity: 1;
+            display: flex;
+            transform: translateY(0);
+        }
+
+        .header {
+            font-size: 2.25rem;
+            font-weight: 800;
+            color: var(--text-color);
+            margin-bottom: 12px;
+            letter-spacing: -1px;
+            line-height: 1.2;
+        }
+        
+        .tagline {
+            color: var(--secondary-text);
+            font-size: 1.1rem;
+            margin-bottom: 40px;
+            max-width: 400px;
+        }
+
+        .login-card {
+            width: 100%;
+            padding: 40px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 20px 40px var(--shadow-color);
+        }
+
+        @media (max-width: 640px) {
+            .lang-grid { grid-template-columns: repeat(2, 1fr); }
+            .header { font-size: 1.75rem; }
+            .tagline { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div class="splash-logo"><i class="fas fa-bolt"></i></div>
+        <div class="splash-name">VoltWise</div>
+        <div class="loading-bar">
+            <div class="loading-progress"></div>
+        </div>
+    </div>
+
+    <!-- Language Selection Screen -->
+    <div id="language-screen">
+        <h1 style="font-weight: 800; letter-spacing: -1px; margin-bottom: 8px;" data-i18n="choose_language">Select Language</h1>
+        <p style="color: var(--secondary-text);" data-i18n="choose_language_subtitle">Choose your preferred language to continue</p>
+        
+        <div class="lang-grid">
+            <button class="lang-btn" onclick="selectLang('en')" id="lang-en">
+                <span class="icon">🇬🇧</span>
+                <span class="name">English</span>
+            </button>
+            <button class="lang-btn" onclick="selectLang('hi')" id="lang-hi">
+                <span class="icon">🇮🇳</span>
+                <span class="name">Hindi</span>
+            </button>
+            <button class="lang-btn" onclick="selectLang('te')" id="lang-te">
+                <span class="icon">🇮🇳</span>
+                <span class="name">Telugu</span>
+            </button>
+            <button class="lang-btn" onclick="selectLang('ur')" id="lang-ur">
+                <span class="icon">🇵🇰</span>
+                <span class="name">Urdu</span>
+            </button>
+            <button class="lang-btn" onclick="selectLang('es')" id="lang-es">
+                <span class="icon">🇪🇸</span>
+                <span class="name">Spanish</span>
+            </button>
+            <button class="lang-btn" onclick="selectLang('fr')" id="lang-fr">
+                <span class="icon">🇫🇷</span>
+                <span class="name">French</span>
+            </button>
+        </div>
+        
+        <button class="submit-btn" style="margin-top: 48px; max-width: 280px;" onclick="continueToLogin()">
+            <span data-i18n="continue_btn">Get Started</span>
+            <i class="fas fa-arrow-right" style="margin-left: 8px;"></i>
+        </button>
+    </div>
+
+    <!-- Main Content (Login) -->
+    <div id="main-content">
+        <div class="splash-logo" style="font-size: 3rem; margin-bottom: 16px;"><i class="fas fa-bolt"></i></div>
+        <h1 class="header" data-i18n="main_header">Smart Energy Management</h1>
+        <p class="tagline" data-i18n="tagline">Optimize your consumption and reduce your electricity bills with AI.</p>
+
+        <div class="login-card">
+            <h2 style="margin-bottom: 24px; font-weight: 700;" data-i18n="login_title">Welcome Back</h2>
+            <form method="POST" action="/">
+                <div style="text-align: left;">
+                    <label data-i18n="username">Username</label>
+                    <input type="text" name="username" placeholder="Enter your username" required data-i18n="username_placeholder_login">
+                </div>
+                <div style="text-align: left;">
+                    <label data-i18n="password">Password</label>
+                    <input type="password" name="password" placeholder="••••••••" required data-i18n="password_placeholder_login">
+                </div>
+                <button type="submit" class="submit-btn" style="margin-top: 12px;">
+                    <span data-i18n="login_title">Sign In</span>
+                </button>
+            </form>
+            <p style="margin-top: 24px; color: var(--secondary-text); font-size: 0.95rem;">
+                <span data-i18n="new_user">New to VoltWise?</span> 
+                <a href="/register" style="color: var(--accent-color); font-weight: 600; text-decoration: none;" data-i18n="register_title">Create an account</a>
+            </p>
+        </div>
+
+        <div style="margin-top: 40px; color: var(--secondary-text); font-size: 0.85rem;">
+            &copy; 2026 VoltWise &bull; Made with <i class="fas fa-heart" style="color: #ef4444;"></i> for the planet
+        </div>
+    </div>
+
+    <script>
+        function selectLang(lang) {
+            changeLanguage(lang);
+            // Highlight selected button
+            document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById(`lang-${lang}`).classList.add('selected');
+        }
+
+        function continueToLogin() {
+            const langScreen = document.getElementById('language-screen');
+            const mainContent = document.getElementById('main-content');
+            
+            langScreen.classList.add('hidden');
+            setTimeout(() => {
+                langScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+            }, 600);
+        }
+
+        window.addEventListener('load', () => {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+
+            // Initial highlight if lang exists
+            const savedLang = localStorage.getItem('selectedLanguage') || 'en';
+            const langBtn = document.getElementById(`lang-${savedLang}`);
+            if (langBtn) langBtn.classList.add('selected');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const skipLang = urlParams.get('skip_lang');
+
+            const splash = document.getElementById('splash-screen');
+            const langScreen = document.getElementById('language-screen');
+            const mainContent = document.getElementById('main-content');
+
+            if (skipLang === 'true') {
+                splash.style.display = 'none';
+                langScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+            } else {
+                setTimeout(() => {
+                    splash.classList.add('hidden');
+                    setTimeout(() => {
+                        splash.style.display = 'none';
+                        langScreen.classList.add('visible');
+                    }, 800);
+                }, 2500);
+            }
+        });
+    </script>
+</body>
+</html>

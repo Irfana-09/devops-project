@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - VoltWise</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="{{ url_for('static', filename='language.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <!-- EDIT APPLIANCE MODAL -->
+    <div id="editModal" class="modal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center;">
+        <div class="card" style="width: 100%; max-width: 500px; padding: 30px;">
+            <div class="card-title"><i class="fas fa-edit" style="color: var(--accent-color);"></i> <span data-i18n="edit_appliance">Edit Appliance</span></div>
+            <form action="/edit-appliance" method="POST">
+                <input type="hidden" name="user_id" value="{{ user_id }}">
+                <input type="hidden" name="appliance_id" id="edit-appliance-id">
+                <div style="margin-bottom: 15px;">
+                    <label data-i18n="appliance_name_label">Appliance Name</label>
+                    <input type="text" name="name" id="edit-appliance-name" required autocomplete="off" spellcheck="false" data-i18n="appliance_name_placeholder">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label data-i18n="power_label">Power (Watts)</label>
+                    <input type="number" step="0.1" name="power" id="edit-appliance-power" required data-i18n="power_placeholder">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label data-i18n="hours_label">Daily Usage (Hours)</label>
+                    <input type="number" step="0.1" name="hours" id="edit-appliance-hours" required data-i18n="hours_placeholder">
+                </div>
+                <div style="display: flex; gap: 15px;">
+                    <button type="submit" class="submit-btn" style="flex: 1;" data-i18n="save_changes">Save Changes</button>
+                    <button type="button" class="delete-btn" style="flex: 1;" onclick="closeEditModal()" data-i18n="cancel">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <i class="fas fa-bolt"></i>
+        <span>VoltWise</span>
+    </div>
+    
+    <button onclick="showSection('overview')" class="sidebar-btn active-nav">
+        <i class="fas fa-th-large"></i> <span data-i18n="nav_overview">Overview</span>
+    </button>
+    <button onclick="showSection('bill')" class="sidebar-btn">
+        <i class="fas fa-file-invoice"></i> <span data-i18n="nav_bill">Generate Bill</span>
+    </button>
+    <button onclick="showSection('history')" class="sidebar-btn">
+        <i class="fas fa-history"></i> <span data-i18n="nav_history">Bill History</span>
+    </button>
+    <button onclick="showSection('appliance')" class="sidebar-btn">
+        <i class="fas fa-plug"></i> <span data-i18n="nav_prediction">Appliances</span>
+    </button>
+    <button onclick="showSection('graph')" class="sidebar-btn">
+        <i class="fas fa-chart-line"></i> <span data-i18n="nav_graph">Analytics</span>
+    </button>
+    <button onclick="showSection('suggestion')" class="sidebar-btn">
+        <i class="fas fa-lightbulb"></i> <span data-i18n="nav_suggestions">Smart Tips</span>
+    </button>
+    
+    <div style="margin-top: auto; padding-bottom: 20px;">
+        <div class="settings-container">
+            <div class="dropdown-menu" id="settings-dropdown">
+                <div class="dropdown-item" onclick="showSection('profile')">
+                    <i class="fas fa-user-circle"></i> <span data-i18n="profile_title">Profile Settings</span>
+                </div>
+                <div class="dropdown-item" onclick="toggleLangSubmenu(event)" id="lang-menu-item">
+                    <i class="fas fa-language"></i> <span data-i18n="language_title">Language</span> <i class="fas fa-chevron-right" style="margin-left: auto; font-size: 0.7rem;"></i>
+                    <div class="lang-submenu" id="lang-submenu">
+                        <button class="lang-item" onclick="changeLanguage('en')">🇬🇧 English</button>
+                        <button class="lang-item" onclick="changeLanguage('hi')">🇮🇳 Hindi</button>
+                        <button class="lang-item" onclick="changeLanguage('te')">🇮🇳 Telugu</button>
+                        <button class="lang-item" onclick="changeLanguage('ur')">🇵🇰 Urdu</button>
+                        <button class="lang-item" onclick="changeLanguage('es')">🇪🇸 Spanish</button>
+                        <button class="lang-item" onclick="changeLanguage('fr')">🇫🇷 French</button>
+                    </div>
+                </div>
+                <div class="dropdown-divider"></div>
+                <a href="/" class="dropdown-item" style="color: #ef4444;">
+                    <i class="fas fa-sign-out-alt"></i> <span data-i18n="sign_out">Sign Out</span>
+                </a>
+            </div>
+            <button class="sidebar-btn" onclick="toggleSettingsDropdown()" id="settings-btn">
+                <i class="fas fa-cog"></i> <span data-i18n="nav_settings">Settings</span> <i class="fas fa-chevron-up" style="margin-left: auto; font-size: 0.8rem;"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="content">
+    <div class="top-bar">
+        <div class="top-bar-left">
+            <button id="sidebar-toggle" onclick="toggleSidebar()" class="icon-btn"><i class="fas fa-bars"></i></button>
+            <h2 id="welcome-text" data-i18n-welcome data-username="{{ username }}" style="margin: 0; font-size: 1.25rem;">Hi, {{ username }} 👋</h2>
+        </div>
+        <div class="top-bar-right">
+            <div id="weather-widget" class="weather-widget glass-card" style="display: none;">
+                <i id="weather-icon" class="fas fa-sun"></i>
+                <div>
+                    <div id="weather-temp" style="font-weight: 700; font-size: 0.9rem;">28°C</div>
+                    <div id="weather-desc" style="font-size: 0.7rem; color: var(--secondary-text); text-transform: capitalize;" data-i18n="clear_sky">Clear Sky</div>
+                </div>
+            </div>
+            <div class="time-widget glass-card">
+                <i class="far fa-clock"></i>
+                <span id="digital-clock">00:00</span>
+            </div>
+            <button class="icon-btn glass-card" onclick="toggleTheme()" id="theme-btn-top">
+                <i class="fas fa-sun"></i>
+            </button>
+            <div style="position: relative;">
+                <button class="icon-btn glass-card" id="notification-btn" onclick="toggleNotifications()">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge" id="notif-count">3</span>
+                </button>
+                <div class="dropdown-menu notification-dropdown glass-card" id="notification-dropdown">
+                    <div class="dropdown-header" data-i18n="notifications">Notifications</div>
+                    <div id="notification-items">
+                        <!-- Items will be injected by JS -->
+                    </div>
+                </div>
+            </div>
+            <button class="icon-btn glass-card" onclick="showSection('profile')" style="padding: 0; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                {% if profile_pic %}
+                <img src="{{ url_for('static', filename='uploads/' + profile_pic) }}" alt="User" style="width: 100%; height: 100%; object-fit: cover;">
+                {% else %}
+                <i class="fas fa-user"></i>
+                {% endif %}
+            </button>
+        </div>
+    </div>
+
+    <!-- OVERVIEW SECTION -->
+    <div id="overview" class="section active">
+        <div id="savingsGoalContainer" class="card glass-card" style="display: none; padding: 24px 30px; margin-bottom: 24px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%); border-left: 4px solid var(--accent-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <strong style="font-size: 1.1rem;"><i class="fas fa-bullseye" style="color: var(--accent-color); margin-right: 8px;"></i> <span data-i18n="savings_goal">Savings Goal Progress</span></strong>
+                <span id="savingsProgressText" style="font-size: 0.95rem; font-weight: 700; color: var(--accent-color);">0%</span>
+            </div>
+            <div class="progress-container" style="height: 14px;">
+                <div id="savingsProgressBar" class="progress-bar" style="width: 0%;"></div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card glass-card">
+                <div class="stat-title" data-i18n="est_monthly_bill">Estimated Monthly Bill</div>
+                <div class="stat-value">₹<span id="overviewBill">0</span></div>
+                <div class="stat-trend" style="color: #10b981;">
+                    <i class="fas fa-arrow-down"></i> <span data-i18n="bill_trend_desc">12% from last month</span>
+                </div>
+            </div>
+            <div class="stat-card glass-card">
+                <div class="stat-title" data-i18n="units_consumed">Units Consumed</div>
+                <div class="stat-value"><span id="overviewUnits">0</span> <span style="font-size: 1rem; color: var(--secondary-text);">kWh</span></div>
+                <div class="stat-trend" style="color: #ef4444;">
+                    <i class="fas fa-arrow-up"></i> <span data-i18n="units_vs_predicted">5.4% vs predicted</span>
+                </div>
+            </div>
+            <div class="stat-card glass-card">
+                <div class="stat-title" data-i18n="carbon_footprint">Carbon Footprint</div>
+                <div class="stat-value"><span id="overviewCarbon">0</span> <span style="font-size: 1rem; color: var(--secondary-text);">kg CO2</span></div>
+                <div class="stat-trend" style="color: #10b981;">
+                    <i class="fas fa-leaf"></i> <span data-i18n="eco_status">Eco Status: Good</span>
+                </div>
+            </div>
+            <div class="stat-card glass-card">
+                <div class="stat-title" data-i18n="monthly_budget">Monthly Budget</div>
+                <div class="stat-value">₹<span id="overviewBudget">0</span></div>
+                <div class="stat-trend" id="budgetStatus" style="color: #f59e0b;" data-i18n="set_budget_desc">
+                    Set your budget in settings
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px;">
+            <div class="card glass-card">
+                <div class="card-title"><i class="fas fa-chart-area" style="color: var(--accent-color);"></i> <span data-i18n="recent_usage_trend">Recent Usage Trend</span></div>
+                <div style="height: 300px;">
+                    <canvas id="overviewChart"></canvas>
+                </div>
+            </div>
+            <div class="card glass-card" style="display: flex; flex-direction: column; height: 100%;">
+                <div class="card-title"><i class="fas fa-lightbulb" style="color: #f59e0b;"></i> <span data-i18n="quick_tips">Quick Tips</span></div>
+                <div id="quickTips" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="tip-card active-tip">
+                        <i class="fas fa-lightbulb"></i>
+                        <p data-i18n="tip_led">Switch to LED bulbs to save up to 75% energy.</p>
+                    </div>
+                    <div class="tip-card" style="display: none;">
+                        <i class="fas fa-plug"></i>
+                        <p data-i18n="tip_unplug">Unplug electronics when not in use to avoid phantom power.</p>
+                    </div>
+                    <div class="tip-card" style="display: none;">
+                        <i class="fas fa-sun"></i>
+                        <p data-i18n="tip_natural_light">Use natural light during the day to reduce bulb usage.</p>
+                    </div>
+                </div>
+                <div class="tip-indicator-container">
+                    <div class="tip-dot active"></div>
+                    <div class="tip-dot"></div>
+                    <div class="tip-dot"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BILL SECTION -->
+    <div id="bill" class="section">
+        <div class="card glass-card">
+            <div class="card-title"><i class="fas fa-file-invoice" style="color: var(--accent-color);"></i> <span data-i18n="gen_bill_title">Generate Electricity Bill</span></div>
+            <p style="margin-top: 10px; color: var(--secondary-text);" data-i18n="select_option">Choose your preferred method to calculate your bill:</p>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:24px; margin-top:24px;">
+                <div class="card glass-card" style="margin-bottom:0; background: rgba(59, 130, 246, 0.05) !important; border-color: rgba(59, 130, 246, 0.1);">
+                    <h3><i class="fas fa-camera"></i> <span data-i18n="scan_meter">Scan Meter</span></h3>
+                    <p style="font-size: 0.9rem; color: var(--secondary-text); margin: 12px 0;" data-i18n="scan_meter_desc">Upload a photo of your meter to automatically calculate your bill using AI.</p>
+                    <a href="/upload-page/{{ user_id }}" target="_blank" style="text-decoration:none;">
+                        <button class="submit-btn" style="margin-top:10px;" data-i18n="open_scan_page">Open Scanner ↗</button>
+                    </a>
+                </div>
+
+                <div class="card glass-card" style="margin-bottom:0; background: rgba(16, 185, 129, 0.05) !important; border-color: rgba(16, 185, 129, 0.1); display:flex; flex-direction:column; justify-content:space-between;">
+                    <h3><i class="fas fa-keyboard"></i> <span data-i18n="manual_entry">Manual Entry</span></h3>
+                    <p style="font-size: 0.9rem; color: var(--secondary-text); margin: 12px 0;" data-i18n="manual_entry_desc">Enter your meter readings manually for a quick calculation.</p>
+                    <a href="/manual-page/{{ user_id }}" style="text-decoration:none;">
+                        <button class="submit-btn" style="background: #10b981;" data-i18n="go_to_manual">Manual Entry</button>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORY SECTION -->
+    <div id="history" class="section">
+        <div class="card glass-card" id="historyListData">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div class="card-title" style="margin-bottom: 0;"><i class="fas fa-history" style="color: var(--accent-color);"></i> <span data-i18n="nav_history">Bill History</span></div>
+                <div id="clearHistoryContainer">
+                    <a href="/clear-history/{{ user_id }}" onclick="return confirm('Clear all history?')" style="color: #ef4444; text-decoration: none; font-size: 0.9rem;">
+                        <i class="fas fa-trash-alt"></i> <span data-i18n="clear_history">Clear History</span>
+                    </a>
+                </div>
+            </div>
+            <ul id="historyList" class="appliance-list"></ul>
+        </div>
+
+        <div class="card glass-card" id="historyGraphCard">
+            <div class="card-title"><i class="fas fa-chart-line" style="color: var(--accent-color);"></i> <span data-i18n="bill_trend">Consumption Trend</span></div>
+            <div style="height: 300px; margin-bottom: 20px;">
+                <canvas id="historyLineChart"></canvas>
+            </div>
+            <div id="historyTrend" style="padding: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.05); text-align: center; font-weight: 600;"></div>
+        </div>
+    </div>
+
+    <!-- APPLIANCE SECTION -->
+    <div id="appliance" class="section">
+        <div class="card glass-card">
+            <div class="card-title"><i class="fas fa-plus-circle" style="color: var(--accent-color);"></i> <span data-i18n="add_new_appliance">Add New Appliance</span></div>
+            <form method="POST" action="/appliance">
+                <input type="hidden" name="user_id" value="{{ user_id }}">
+                <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 15px;">
+                    <div>
+                        <label data-i18n="appliance_name_label">Appliance Name</label>
+                        <input type="text" name="name" placeholder="e.g. Air Conditioner" required oninput="autoFillData(this.value)" autocomplete="off" spellcheck="false" data-i18n="appliance_name_placeholder">
+                    </div>
+                    <div>
+                        <label data-i18n="power_label">Power (Watts)</label>
+                        <input type="number" step="0.1" name="power" placeholder="e.g. 1500" required data-i18n="power_placeholder">
+                    </div>
+                    <div>
+                        <label data-i18n="hours_label">Daily Usage (Hours)</label>
+                        <input type="number" step="0.1" name="hours" placeholder="e.g. 8" required data-i18n="hours_placeholder">
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn" style="margin-top: 15px;" data-i18n="add_appliance">Add Appliance</button>
+            </form>
+        </div>
+
+        <div class="card glass-card">
+            <div class="card-title"><i class="fas fa-list" style="color: var(--accent-color);"></i> <span data-i18n="connected_appliances">Connected Appliances</span></div>
+            <ul class="appliance-list">
+                {% for app in appliances %}
+                <li class="appliance-card glass-card" style="display: flex; flex-direction: column; align-items: stretch; gap: 15px; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="background: var(--accent-color); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-plug"></i>
+                            </div>
+                            <div>
+                                <strong style="font-size: 1.1rem;">{{ app[1] }}</strong><br>
+                                <small style="color: var(--secondary-text);">{{ app[3]|round(1) }}W • {{ app[4]|round(1) }}h/day</small>
+                            </div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-color);">₹{{ (app[2] * 30 * 5)|round(2) }}</div>
+                            <small style="color: var(--secondary-text);">per month</small>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                        <button onclick="openEditModal('{{ app[0] }}', '{{ app[1] }}', '{{ app[3] }}', '{{ app[4] }}')" class="sidebar-btn" style="flex: 1; justify-content: center; padding: 8px; margin: 0; font-size: 0.9rem; background: rgba(59, 130, 246, 0.1); color: var(--accent-color); border: 1px solid rgba(59, 130, 246, 0.2);">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <a href="/delete-appliance/{{ app[0] }}/{{ user_id }}" onclick="return confirm('Delete this appliance?')" class="sidebar-btn" style="flex: 1; justify-content: center; padding: 8px; margin: 0; font-size: 0.9rem; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); text-decoration: none;">
+                            <i class="fas fa-trash"></i> Delete
+                        </a>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+
+            <!-- PREDICTION SUMMARY SECTION -->
+            <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border-top: 2px dashed var(--border-color); padding-top: 25px;">
+                <div class="stat-card" style="background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.1); padding: 20px; border-radius: 12px; text-align: center;">
+                    <div style="color: var(--secondary-text); font-size: 0.9rem; margin-bottom: 8px;" data-i18n="estimated_usage">Estimated Monthly Units</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: var(--text-color);"><span id="predictedUnits">0</span> <small style="font-size: 0.9rem; font-weight: 400;">kWh</small></div>
+                </div>
+                <div class="stat-card" style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; text-align: center;">
+                    <div style="color: var(--secondary-text); font-size: 0.9rem; margin-bottom: 8px;" data-i18n="est_monthly_bill">Estimated Monthly Bill</div>
+                    <div style="font-size: 1.5rem; font-weight: 800; color: #10b981;">₹<span id="predictedBill">0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card glass-card" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%); border-color: rgba(59, 130, 246, 0.2);">
+            <div class="card-title"><i class="fas fa-brain" style="color: var(--accent-color);"></i> AI Insights</div>
+            <p id="topAppliance" style="font-weight: 600; color: var(--text-color); margin-bottom: 10px;"></p>
+            <p id="totalUsage" style="color: var(--secondary-text); font-size: 0.95rem;"></p>
+            <p id="savings" style="margin-top: 15px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-radius: 8px; color: #10b981; font-weight: 500;"></p>
+        </div>
+    </div>
+
+    <!-- GRAPH SECTION -->
+    <div id="graph" class="section">
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; align-items: start;">
+            <div class="card glass-card">
+                <div class="card-title"><i class="fas fa-chart-bar" style="color: var(--accent-color);"></i> <span data-i18n="actual_vs_predicted">Actual vs Predicted Usage</span></div>
+                <div style="height: 350px; margin: 10px 0; position: relative;">
+                    <canvas id="usageChart"></canvas>
+                </div>
+                <div id="trendMessage" style="padding: 12px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); font-weight: 600; font-size: 0.9rem;"></div>
+            </div>
+
+            <div class="card glass-card">
+                <div class="card-title"><i class="fas fa-chart-pie" style="color: #ef4444;"></i> <span data-i18n="appliance_breakdown">Appliance Breakdown</span></div>
+                <div class="chart-container-donut" style="height: 300px;">
+                    <canvas id="breakdownChart"></canvas>
+                    <div class="chart-center-label">
+                        <span id="totalBreakdownCost" class="chart-center-value">₹0</span>
+                        <span class="chart-center-text">Monthly Cost</span>
+                    </div>
+                </div>
+                <p id="noBreakdownData" style="text-align: center; color: var(--secondary-text); margin-top: 20px; display: none;" data-i18n="no_appliances_chart">Add appliances to see breakdown</p>
+            </div>
+        </div>
+
+        <div class="card glass-card">
+            <div class="card-title"><i class="fas fa-balance-scale" style="color: #f59e0b;"></i> <span data-i18n="bill_comparison">Budget Analysis</span></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div class="stat-card" style="background: rgba(255, 255, 255, 0.03);">
+                    <div class="stat-title" data-i18n="actual_bill">Actual Bill</div>
+                    <div class="stat-value">₹<span id="actualBill">0</span></div>
+                </div>
+                <div class="stat-card" style="background: rgba(255, 255, 255, 0.03);">
+                    <div class="stat-title" data-i18n="predicted_bill">Predicted Bill</div>
+                    <div class="stat-value">₹<span id="predictedBillCmp">0</span></div>
+                </div>
+            </div>
+            <div id="billMessage" style="padding: 15px; border-radius: 8px; text-align: center; font-weight: 600;"></div>
+        </div>
+    </div>
+
+    <!-- SUGGESTION SECTION -->
+    <div id="suggestion" class="section">
+        <div class="card glass-card">
+            <div class="card-title"><i class="fas fa-robot" style="color: var(--accent-color);"></i> AI Energy Suggestions</div>
+            
+            <div id="suggestionStatus" style="margin-bottom: 24px; padding: 20px; border-radius: 12px; background: rgba(255, 255, 255, 0.03);"></div>
+            
+            <h3 style="margin-bottom: 15px; font-size: 1.1rem; color: var(--text-color);">Recommended Actions</h3>
+            <ul id="suggestionActions" class="appliance-list"></ul>
+            
+            <div style="margin-top: 32px; padding: 24px; border-radius: 16px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.1);">
+                <h4 style="margin-bottom: 12px; color: var(--accent-color);"><i class="fas fa-lightbulb"></i> Daily Energy Tip</h4>
+                <div id="tipsCarousel" style="min-height: 60px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE SECTION -->
+    <div id="profile" class="section">
+        <div class="card glass-card profile-card-container">
+            <div class="profile-card-header">
+                <i class="fas fa-user-cog" style="color: var(--accent-color);"></i>
+                <span data-i18n="profile_title">Account Settings</span>
+            </div>
+
+            <div class="profile-center-section">
+                <div class="profile-pic-circle">
+                    {% if profile_pic %}
+                    <img src="{{ url_for('static', filename='uploads/' + profile_pic) }}" alt="Profile" id="profile-pic-img">
+                    {% else %}
+                    <div class="profile-initial-bg">
+                        {{ username[0].upper() if username else 'U' }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <form action="/update-profile" method="POST" enctype="multipart/form-data" id="profileForm">
+                    <input type="hidden" name="user_id" value="{{ user_id }}">
+                    
+                    <div class="change-photo-btn-container">
+                        <button type="button" class="change-photo-btn" onclick="document.getElementById('profile-pic-input').click()">
+                            <i class="fas fa-camera"></i> Change Photo
+                        </button>
+                        <input type="file" name="profile_pic" id="profile-pic-input" accept="image/*" style="display: none;" onchange="previewProfilePic(this)">
+                    </div>
+
+                    <div class="profile-form-grid">
+                        <div class="form-group">
+                            <label data-i18n="username">Username</label>
+                            <input type="text" name="username" value="{{ username }}" placeholder="New Username" required>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="email_label">Email Address</label>
+                            <input type="email" name="email" value="{{ email }}" placeholder="New Email" required>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="phone_label">Phone Number</label>
+                            <input type="text" name="phone" value="{{ phone if phone else '' }}" placeholder="New Phone Number" required>
+                        </div>
+                        <div class="form-group">
+                            <label data-i18n="password_label">New Password</label>
+                            <input type="password" name="password" placeholder="New Password" data-i18n="password_placeholder_profile">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="submit-btn full-width-btn" data-i18n="update_profile_btn">
+                        SAVE CHANGES
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card glass-card" style="margin-top: 24px;">
+            <div class="card-title"><i class="fas fa-wallet" style="color: #f59e0b;"></i> <span data-i18n="budget_settings">Budget Settings</span></div>
+            <form action="/update-budget" method="POST">
+                <input type="hidden" name="user_id" value="{{ user_id }}">
+                <div style="display: flex; gap: 20px; align-items: flex-end;">
+                    <div style="flex-grow: 1;">
+                        <label data-i18n="budget_limit_label">Monthly Budget Limit (₹)</label>
+                        <input type="number" name="budget" placeholder="e.g. 5000" required data-i18n="budget_placeholder">
+                    </div>
+                    <button type="submit" class="submit-btn" style="width: auto; padding: 14px 40px;" data-i18n="set_budget">
+                        Set Budget
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function openEditModal(id, name, power, hours) {
+        document.getElementById('edit-appliance-id').value = id;
+        document.getElementById('edit-appliance-name').value = name;
+        document.getElementById('edit-appliance-power').value = power;
+        document.getElementById('edit-appliance-hours').value = hours;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    function autoFillData(name) {
+        const data = {
+            "air conditioner": { power: 1500, hours: 8 },
+            "refrigerator": { power: 250, hours: 24 },
+            "washing machine": { power: 500, hours: 1 },
+            "geyser": { power: 2000, hours: 0.5 },
+            "microwave": { power: 1200, hours: 0.2 },
+            "led bulb": { power: 12, hours: 6 },
+            "ceiling fan": { power: 75, hours: 12 },
+            "television": { power: 150, hours: 4 },
+            "laptop": { power: 65, hours: 6 }
+        };
+        const app = data[name.toLowerCase()];
+        if (app) {
+            document.querySelector('input[name="power"]').value = app.power;
+            document.querySelector('input[name="hours"]').value = app.hours;
+        }
+    }
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const content = document.querySelector('.content');
+        if (window.innerWidth <= 768) {
+            sidebar.classList.toggle('show-sidebar');
+        } else {
+            sidebar.classList.toggle('collapsed');
+            content.classList.toggle('expanded');
+        }
+    }
+
+    function toggleSettingsDropdown() {
+        const dropdown = document.getElementById('settings-dropdown');
+        const btn = document.getElementById('settings-btn');
+        const icon = btn.querySelector('.fa-chevron-up') || btn.querySelector('.fa-chevron-down');
+        
+        dropdown.classList.toggle('show');
+        if (dropdown.classList.contains('show')) {
+            icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        } else {
+            icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            document.getElementById('lang-submenu').classList.remove('show');
+        }
+    }
+
+    function toggleLangSubmenu(e) {
+        e.stopPropagation();
+        const submenu = document.getElementById('lang-submenu');
+        submenu.classList.toggle('show');
+    }
+
+    function toggleNotifications() {
+        const dropdown = document.getElementById('notification-dropdown');
+        dropdown.classList.toggle('show');
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        const themeBtn = document.getElementById('theme-btn-top');
+        if (themeBtn) {
+            themeBtn.innerHTML = newTheme === 'light' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+        }
+    }
+
+    function toggleHistoryList() {
+        const listData = document.getElementById('historyListData');
+        const showAction = document.getElementById('showHistoryAction');
+        if (listData) listData.style.display = 'block';
+        if (showAction) showAction.style.display = 'none';
+        loadHistory();
+    }
+
+    window.addEventListener('click', function(e) {
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsDropdown = document.getElementById('settings-dropdown');
+        const notificationBtn = document.getElementById('notification-btn');
+        const notificationDropdown = document.getElementById('notification-dropdown');
+        
+        if (settingsBtn && !settingsBtn.contains(e.target) && settingsDropdown && !settingsDropdown.contains(e.target)) {
+            const langSubmenu = document.getElementById('lang-submenu');
+            const icon = settingsBtn.querySelector('.fa-chevron-down');
+            
+            if (settingsDropdown.classList.contains('show')) {
+                settingsDropdown.classList.remove('show');
+                if (icon) icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            }
+            if (langSubmenu && langSubmenu.classList.contains('show')) {
+                langSubmenu.classList.remove('show');
+            }
+        }
+
+        if (notificationBtn && !notificationBtn.contains(e.target) && notificationDropdown && !notificationDropdown.contains(e.target)) {
+            if (notificationDropdown.classList.contains('show')) {
+                notificationDropdown.classList.remove('show');
+            }
+        }
+    });
+
+    function showSection(id){
+        let sections = document.getElementsByClassName("section");
+        let navButtons = document.querySelectorAll(".sidebar .sidebar-btn");
+        
+        for(let i=0; i<sections.length; i++){
+            sections[i].classList.remove("active");
+        }
+        for(let btn of navButtons) {
+            btn.classList.remove("active-nav");
+        }
+        
+        const targetSection = document.getElementById(id);
+        if (targetSection) {
+            targetSection.classList.add("active");
+        }
+        
+        for(let btn of navButtons) {
+            if(btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${id}'`)) {
+                btn.classList.add("active-nav");
+            }
+        }
+
+        if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('show-sidebar');
+        }
+
+        localStorage.setItem("activeSection", id);
+
+        if(id === "overview") loadOverview();
+        if(id === "graph") loadGraph();
+        if(id === "appliance") { loadPrediction(); loadInsights(); }
+        if(id === "history") loadHistory();
+        if(id === "suggestion") loadSuggestions();
+    }
+
+    async function loadOverview() {
+        const userId = "{{ user_id }}";
+        const response = await fetch(`/predict/${userId}`);
+        const data = await response.json();
+        
+        document.getElementById("overviewBill").innerText = data.monthly_bill || 0;
+        document.getElementById("overviewUnits").innerText = data.monthly_units || 0;
+
+        const resData = await fetch(`/get-data/${userId}`);
+        const fullData = await resData.json();
+        
+        document.getElementById("overviewCarbon").innerText = fullData.carbon_footprint || 0;
+        document.getElementById("overviewBudget").innerText = "₹" + (fullData.budget || 0);
+        
+        const budgetStatus = document.getElementById("budgetStatus");
+        const lang = localStorage.getItem('selectedLanguage') || 'en';
+        const t = translations[lang] || translations['en'];
+
+        const savingsGoalContainer = document.getElementById("savingsGoalContainer");
+        if (fullData.budget > 0) {
+            const percentUsed = Math.min(100, (fullData.actual / fullData.budget) * 100);
+            const progressBar = document.getElementById("savingsProgressBar");
+            const progressText = document.getElementById("savingsProgressText");
+            
+            progressBar.style.width = percentUsed + "%";
+            if (percentUsed > 90) progressBar.style.background = "#ef4444";
+            else if (percentUsed > 70) progressBar.style.background = "#f59e0b";
+            else progressBar.style.background = "linear-gradient(90deg, var(--accent-color), #00ffc3)";
+            
+            let desc = t['savings_goal_desc'] || "You have used {percent}% of your monthly budget.";
+            if (desc.includes('{percent}')) {
+                desc = desc.replace('{percent}', Math.round(percentUsed));
+            }
+            progressText.innerText = desc;
+            savingsGoalContainer.style.display = "block";
+        } else {
+            savingsGoalContainer.style.display = "none";
+        }
+
+        if (fullData.budget > 0) {
+            if (fullData.budget_warning) {
+                budgetStatus.innerText = "🚨 " + (t['over_budget'] || "Over Budget!");
+                budgetStatus.style.color = "#ef4444";
+            } else {
+                const remaining = fullData.budget - fullData.actual;
+                let remainText = t['budget_remaining'] || "₹{amount} remaining";
+                remainText = remainText.replace('{amount}', "₹" + remaining.toFixed(2));
+                budgetStatus.innerText = "✅ " + remainText;
+                budgetStatus.style.color = "#10b981";
+            }
+        } else {
+            budgetStatus.innerText = t['set_budget_in_settings'] || "Set your budget in settings";
+            budgetStatus.style.color = "#f59e0b";
+        }
+
+        const ctx = document.getElementById("overviewChart").getContext("2d");
+        if (window.overviewChartInstance) window.overviewChartInstance.destroy();
+
+        const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color').trim();
+        const secondaryText = getComputedStyle(document.body).getPropertyValue('--secondary-text').trim();
+
+        window.overviewChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Usage Trend',
+                    data: fullData.history ? fullData.history.slice(0, 6).reverse() : [120, 150, 180, 140, 200, 170],
+                    borderColor: accentColor,
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderWidth: 3,
+                    pointRadius: 4,
+                    pointBackgroundColor: accentColor
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: secondaryText } },
+                    x: { grid: { display: false }, ticks: { color: secondaryText } }
+                }
+            }
+        });
+    }
+
+    async function loadGraph() {
+        const userId = "{{ user_id }}";
+        const response = await fetch(`/get-data/${userId}`);
+        const data = await response.json();
+        const lang = localStorage.getItem('selectedLanguage') || 'en';
+        const t = translations[lang] || translations['en'];
+
+        const canvas = document.getElementById("usageChart");
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        canvas.parentElement.style.height = "350px";
+
+        if(window.myChart) window.myChart.destroy();
+        const textColor = getComputedStyle(document.body).getPropertyValue('--text-color');
+        const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color');
+        
+        window.myChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: [t['monthly_usage_label'] || "Monthly Usage"],
+                datasets: [
+                    { label: t['predicted_label'] || "Predicted Bill", data: [data.predicted], backgroundColor: accentColor, borderRadius: 6, barThickness: 50 },
+                    { label: t['actual_label'] || "Actual Bill", data: [data.actual], backgroundColor: "#f59e0b", borderRadius: 6, barThickness: 50 }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: textColor } },
+                    x: { grid: { display: false }, ticks: { color: textColor } }
+                },
+                plugins: { legend: { position: 'top', labels: { color: textColor, font: { family: 'Inter' } } } }
+            }
+        });
+
+        const breakdownCanvas = document.getElementById("breakdownChart");
+        if (!breakdownCanvas) return;
+        const breakdownCtx = breakdownCanvas.getContext("2d");
+        breakdownCanvas.parentElement.style.height = "300px";
+
+        if (window.breakdownChartInstance) window.breakdownChartInstance.destroy();
+        const appliances = data.appliances || [];
+        if (appliances.length > 0) {
+            document.getElementById("noBreakdownData").style.display = "none";
+            document.getElementById("breakdownChart").style.display = "block";
+            const labels = appliances.map(a => a.name);
+            const values = appliances.map(a => a.cost);
+            const totalCost = values.reduce((a, b) => a + b, 0);
+            document.getElementById("totalBreakdownCost").innerText = "₹" + Math.round(totalCost);
+
+            window.breakdownChartInstance = new Chart(breakdownCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'],
+                        borderWidth: 0, cutout: '75%'
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { color: textColor, font: { family: 'Inter' } } } }
+                }
+            });
+        } else {
+            document.getElementById("noBreakdownData").style.display = "block";
+            document.getElementById("breakdownChart").style.display = "none";
+            document.getElementById("totalBreakdownCost").innerText = "₹0";
+        }
+
+        let msg = data.actual > data.predicted ? (t['usage_increasing'] || "⚠️ Usage Exceeding Predictions") : (data.actual < data.predicted ? (t['usage_decreasing'] || "✅ Usage Within Budget") : (t['usage_stable'] || "➖ Usage Stable"));
+        let trendEl = document.getElementById("trendMessage");
+        trendEl.innerText = msg;
+        trendEl.style.color = data.actual > data.predicted ? "#ef4444" : (data.actual < data.predicted ? "#10b981" : "inherit");
+    }
+
+    async function loadPrediction(){
+        const userId = "{{ user_id }}";
+        const response = await fetch(`/predict/${userId}`);
+        const data = await response.json();
+        document.getElementById("predictedUnits").innerText = data.monthly_units || 0;
+        document.getElementById("predictedBill").innerText = data.monthly_bill || 0;
+        const billEl = document.getElementById("overviewBill");
+        const unitsEl = document.getElementById("overviewUnits");
+        if(billEl) billEl.innerText = data.monthly_bill || 0;
+        if(unitsEl) unitsEl.innerText = data.monthly_units || 0;
+    }
+
+    function loadHistory(){
+        const userId = "{{ user_id }}";
+        fetch(`/get-data/${userId}`)
+        .then(res => res.json())
+        .then(data => {
+            let history = data.formatted_history || [];
+            let list = document.getElementById("historyList");
+            let container = document.getElementById("clearHistoryContainer");
+            let graphCard = document.getElementById("historyGraphCard");
+            let listData = document.getElementById("historyListData");
+            list.innerHTML = "";
+            if (history.length === 0) {
+                list.innerHTML = `<p style='text-align:center; color:#888;'>${translations[localStorage.getItem('selectedLanguage') || 'en']['no_data']}</p>`;
+                if(container) container.style.display = "none";
+                if(graphCard) graphCard.style.display = "none";
+            } else {
+                if(container) container.style.display = "block";
+                if(graphCard) graphCard.style.display = "block";
+                const lang = localStorage.getItem('selectedLanguage') || 'en';
+                const t = translations[lang] || translations['en'];
+                history.forEach((bill) => {
+                    let li = document.createElement("li");
+                    li.className = "appliance-card glass-card";
+                    li.style.display = "flex"; li.style.justifyContent = "space-between"; li.style.padding = "15px"; li.style.marginBottom = "10px";
+                    const monthName = t[`month_${bill.month_num}`] || bill.month_num;
+                    li.innerHTML = `<span>📅 ${monthName} ${bill.year}</span> <strong style="color:var(--accent-color);">₹${bill.amount}</strong>`;
+                    list.appendChild(li);
+                });
+                renderHistoryGraph(history);
+            }
+        });
+    }
+
+    function renderHistoryGraph(history) {
+        const ctx = document.getElementById('historyLineChart').getContext('2d');
+        const lang = localStorage.getItem('selectedLanguage') || 'en';
+        const t = translations[lang] || translations['en'];
+        const displayData = [...history].reverse();
+        const labels = displayData.map(h => { const monthName = t[`month_${h.month_num}`] || h.month_num; return `${monthName} ${h.year}`; });
+        const amounts = displayData.map(h => h.amount);
+        if (window.historyChartInstance) window.historyChartInstance.destroy();
+        window.historyChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels: labels, datasets: [{ label: t['bill_amount_label'] || 'Bill Amount (₹)', data: amounts, borderColor: '#00ffc3', backgroundColor: 'rgba(0, 255, 195, 0.1)', borderWidth: 3, pointBackgroundColor: '#00ffc3', pointRadius: 5, fill: true, tension: 0.3 }] },
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-color') } }, x: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-color') } } }, plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue('--text-color') } } } }
+        });
+    }
+
+    function loadComparison(){
+        const userId = "{{ user_id }}";
+        fetch(`/predict/${userId}`).then(res => res.json()).then(data => {
+            let predicted = data.monthly_bill || 0;
+            fetch(`/get-data/${userId}`).then(res => res.json()).then(d => {
+                const lang = localStorage.getItem('selectedLanguage') || 'en';
+                const t = translations[lang] || translations['en'];
+                let actual = d.actual || 0;
+                document.getElementById("actualBill").innerText = actual.toFixed(2);
+                document.getElementById("predictedBillCmp").innerText = predicted.toFixed(2);
+                let msg = actual > predicted ? (t['usage_exceeding'] || "⚠️ You are using more than expected") : (t['usage_under_control'] || "✅ Your usage is under control");
+                let msgEl = document.getElementById("billMessage");
+                if(msgEl) { msgEl.innerText = msg; msgEl.style.color = actual > predicted ? "#ef4444" : "#10b981"; }
+            });
+        });
+    }
+
+    function loadInsights(){
+        const userId = "{{ user_id }}";
+        const topAppEl = document.getElementById("topAppliance");
+        const totalUsageEl = document.getElementById("totalUsage");
+        const savingsEl = document.getElementById("savings");
+        fetch(`/get-data/${userId}`).then(res => res.json()).then(data => {
+            const lang = localStorage.getItem('selectedLanguage') || 'en';
+            const t = translations[lang] || translations['en'];
+            let appliances = data.appliances || [];
+            if(appliances.length === 0){
+                if(topAppEl) topAppEl.innerText = "No appliances added yet.";
+                if(totalUsageEl) totalUsageEl.innerText = "Add appliances to see insights.";
+                if(savingsEl) savingsEl.style.display = "none";
+                return;
+            }
+            if(savingsEl) savingsEl.style.display = "block";
+            let maxApp = appliances.reduce((max, curr) => curr.units > max.units ? curr : max, appliances[0]);
+            let usageText = (t['insight_usage'] || "⚡ {appliance} consumes {units} units/mo").replace('{appliance}', maxApp.name.toUpperCase()).replace('{units}', (maxApp.units * 30).toFixed(2));
+            let savingsText = (t['insight_savings'] || "💰 Save ₹{amount}/mo by reducing {appliance} usage by 20%").replace('{appliance}', maxApp.name.toUpperCase()).replace('{amount}', (maxApp.units * 30 * 5 * 0.2).toFixed(2));
+            if(topAppEl) topAppEl.innerHTML = `<i class="fas fa-chart-pie"></i> ${usageText}`;
+            if(totalUsageEl) totalUsageEl.innerText = "Based on your current patterns.";
+            if(savingsEl) savingsEl.innerHTML = `<i class="fas fa-piggy-bank"></i> ${savingsText}`;
+        });
+    }
+
+    async function loadSuggestions() {
+        const userId = "{{ user_id }}";
+        const res = await fetch(`/suggestions/${userId}`);
+        const data = await res.json();
+        const lang = localStorage.getItem('selectedLanguage') || 'en';
+        const t = translations[lang] || translations['en'];
+        const translate = (key, params = {}) => { let text = t[key] || translations['en'][key] || key; for (const [pKey, pVal] of Object.entries(params)) text = text.replace(`{${pKey}}`, pVal); return text; };
+        const notifItems = document.getElementById('notification-items');
+        const notifCount = document.getElementById('notif-count');
+        notifItems.innerHTML = ''; let count = 0;
+        if (data.status_list) data.status_list.forEach(status => { const div = document.createElement('div'); div.className = 'dropdown-item'; div.innerHTML = `<i class="fas fa-exclamation-circle" style="color: ${data.status_color}"></i> <span>${translate(status.key, status.params)}</span>`; notifItems.appendChild(div); count++; });
+        if (count === 0) { notifItems.innerHTML = `<div class="dropdown-item">${t['no_notifications'] || 'No new notifications'}</div>`; notifCount.style.display = 'none'; } else { notifCount.innerText = count; notifCount.style.display = 'block'; }
+        const statusContainer = document.getElementById("suggestionStatus");
+        if(statusContainer) { statusContainer.innerHTML = ""; data.status_list.forEach(status => { const p = document.createElement("p"); p.style.marginBottom = "10px"; p.innerHTML = translate(status.key, status.params); statusContainer.appendChild(p); }); statusContainer.style.color = data.status_color; }
+        const actionsList = document.getElementById("suggestionActions");
+        if(actionsList) { 
+            actionsList.innerHTML = ""; 
+            // Add Savings Tips
+            if (data.savings_tips) {
+                data.savings_tips.forEach(tip => {
+                    const li = document.createElement("li");
+                    li.className = "appliance-card glass-card";
+                    li.style.borderLeft = "4px solid #10b981";
+                    li.style.flexDirection = "column";
+                    li.style.alignItems = "flex-start";
+                    li.innerHTML = `<strong style="color:var(--accent-color);">${translate(tip.title_key, tip.params)}</strong><span>${translate(tip.desc_key, tip.params)}</span>`;
+                    actionsList.appendChild(li);
+                });
+            }
+            // Add Smart Actions
+            if (data.smart_actions) {
+                data.smart_actions.forEach(action => {
+                    const li = document.createElement("li");
+                    li.className = "appliance-card glass-card";
+                    li.style.borderLeft = "4px solid #3b82f6";
+                    li.style.flexDirection = "column";
+                    li.style.alignItems = "flex-start";
+                    li.innerHTML = `<span>${translate(action.key)}</span>`;
+                    actionsList.appendChild(li);
+                });
+            }
+        }
+        
+        // Populate Daily Energy Tip Carousel
+        const carousel = document.getElementById("tipsCarousel");
+        if(carousel && data.general_tips) {
+            let tipIndex = 0;
+            const updateTip = () => {
+                const tipKey = data.general_tips[tipIndex];
+                carousel.style.opacity = 0;
+                setTimeout(() => {
+                    carousel.innerHTML = `<p style="font-size: 1rem; line-height: 1.5;">${t[tipKey] || tipKey}</p>`;
+                    carousel.style.opacity = 1;
+                    tipIndex = (tipIndex + 1) % data.general_tips.length;
+                }, 500);
+            };
+            updateTip();
+            setInterval(updateTip, 5000);
+            carousel.style.transition = "opacity 0.5s ease";
+        }
+    }
+
+    function updateGreeting() {
+        const now = new Date(); const hour = now.getHours();
+        const lang = localStorage.getItem('selectedLanguage') || 'en';
+        const t = translations[lang] || translations['en'];
+        const username = document.getElementById('welcome-text').getAttribute('data-username');
+        let greeting = hour < 12 ? (t['good_morning'] || "Good Morning") : (hour < 17 ? (t['good_afternoon'] || "Good Afternoon") : (t['good_evening'] || "Good Evening"));
+        document.getElementById('welcome-text').innerHTML = `${greeting}, ${username} 👋`;
+    }
+
+    function updateClock() { const now = new Date(); document.getElementById('digital-clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    async function loadWeather() { document.getElementById('weather-widget').style.display = 'flex'; }
+
+    function previewProfilePic(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const circle = document.querySelector('.profile-pic-circle');
+                circle.innerHTML = `<img src="${e.target.result}" alt="Profile" id="profile-pic-img">`;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function initQuickTipsCarousel() {
+        const tips = document.querySelectorAll('#quickTips .tip-card');
+        const dots = document.querySelectorAll('.tip-indicator-container .tip-dot');
+        let currentTip = 0;
+
+        if (tips.length === 0) return;
+
+        function showTip(index) {
+            tips.forEach((tip, i) => {
+                tip.style.display = i === index ? 'flex' : 'none';
+                if (i === index) tip.classList.add('active-tip');
+                else tip.classList.remove('active-tip');
+            });
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === index);
+            });
+            currentTip = index;
+        }
+
+        dots.forEach((dot, i) => {
+            dot.style.cursor = 'pointer';
+            dot.addEventListener('click', () => showTip(i));
+        });
+
+        setInterval(() => {
+            let next = (currentTip + 1) % tips.length;
+            showTip(next);
+        }, 5000);
+    }
+
+    window.addEventListener("load", function(){
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        const themeBtn = document.getElementById('theme-btn-top');
+        if (themeBtn) themeBtn.innerHTML = savedTheme === 'light' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+        showSection(localStorage.getItem("activeSection") || 'overview');
+        updateGreeting(); updateClock(); setInterval(updateClock, 1000); loadWeather();
+        loadPrediction(); loadComparison(); loadInsights(); loadSuggestions();
+        initQuickTipsCarousel();
+    });
+</script>
+</body>
+</html>

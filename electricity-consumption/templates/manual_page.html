@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Calculation - VoltWise</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='language.js') }}"></script>
+    <script>
+        window.addEventListener("load", function(){
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        });
+    </script>
+</head>
+<body style="display:flex; flex-direction: column; justify-content:center; align-items:center; min-height:100vh; padding: 20px; box-sizing: border-box; background: var(--bg-color);">
+
+<div style="margin-bottom: 32px; text-align: center;">
+    <div style="font-size: 3rem; color: var(--accent-color); margin-bottom: 16px;"><i class="fas fa-keyboard"></i></div>
+    <h1 style="font-size: 2.25rem; font-weight: 800; letter-spacing: -1px; margin: 0;" data-i18n="manual_entry">Manual Entry</h1>
+</div>
+
+<div class="card" style="width:100%; max-width:450px; padding: 40px; border-radius: 20px;">
+    {% if msg %}
+    <div class="result-box" style="background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); margin-bottom: 24px;">
+        <p style="margin:0; font-weight:600; color: #10b981;">{{ msg }}</p>
+    </div>
+    {% endif %}
+
+    {% if amount %}
+    <div class="result-box" style="text-align: center; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.1);">
+        <h3 style="margin-bottom: 16px;"><i class="fas fa-calculator"></i> <span data-i18n="calculation_result">Calculation Result</span></h3>
+        <div style="margin-bottom: 12px; color: var(--secondary-text);"><span data-i18n="monthly_units">Units Consumed:</span> <span style="font-weight: 700; color: var(--text-color);">{{ units }} kWh</span></div>
+        <div style="font-size: 0.9rem; color: var(--secondary-text); margin-bottom: 4px;" data-i18n="est_monthly_bill">Total Amount</div>
+        <div style="font-size: 2rem; color: var(--accent-color); font-weight: 800; margin-bottom: 20px;">₹{{ amount }}</div>
+
+        {% if amount < 500 %}
+            <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(16, 185, 129, 0.1); color: #10b981; border-radius: 20px; font-weight: 600; font-size: 0.9rem;" data-i18n="status_efficient">
+                <i class="fas fa-check-circle"></i> Efficient Usage
+            </div>
+        {% elif amount < 1500 %}
+            <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(245, 158, 11, 0.1); color: #f59e0b; border-radius: 20px; font-weight: 600; font-size: 0.9rem;" data-i18n="status_moderate">
+                <i class="fas fa-exclamation-circle"></i> Moderate Usage
+            </div>
+        {% else %}
+            <div style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border-radius: 20px; font-weight: 600; font-size: 0.9rem;" data-i18n="status_high">
+                <i class="fas fa-exclamation-triangle"></i> High Usage Detected!
+            </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="card-title"><i class="fas fa-edit" style="color: var(--accent-color);"></i> <span data-i18n="enter_meter_readings">Enter Meter Readings</span></div>
+    <form method="POST" action="/manual-entry">
+        <input type="hidden" name="user_id" value="{{ user_id }}">
+        <div style="margin-bottom: 20px;">
+            <label data-i18n="prev_reading">Previous Reading (kWh)</label>
+            <input type="number" step="0.01" name="previous" placeholder="e.g. 12450" value="{{ previous_reading }}" required data-i18n="prev_reading_placeholder">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label data-i18n="curr_reading">Current Reading (kWh)</label>
+            <input type="number" step="0.01" name="current" placeholder="e.g. 12680" required data-i18n="curr_reading_placeholder">
+        </div>
+        <button type="submit" class="submit-btn" data-i18n="calculate_bill">
+            <i class="fas fa-calculator"></i> Calculate Bill
+        </button>
+    </form>
+    {% endif %}
+
+    <div style="margin-top:32px; padding-top: 24px; border-top: 1px solid var(--border-color); text-align:center;">
+        <a href="/dashboard/{{ user_id }}" style="color: var(--accent-color); text-decoration:none; font-weight:600;" data-i18n="back_to_dashboard">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+<div style="margin-top: 40px; color: var(--secondary-text); font-size: 0.85rem;">
+    &copy; 2026 VoltWise &bull; Smart Energy Optimization
+</div>
+
+</body>
+</html>
