@@ -609,7 +609,10 @@
         localStorage.setItem("activeSection", id);
 
         if(id === "overview") loadOverview();
-        if(id === "graph") loadGraph();
+        if(id === "graph") {
+    loadGraph();
+    loadConsumptionTrend();
+}
         if(id === "appliance") { loadPrediction(); loadInsights(); }
         if(id === "history") loadHistory();
         if(id === "suggestion") loadSuggestions();
@@ -702,84 +705,407 @@
             }
         });
     }
-
     async function loadGraph() {
-        const userId = "{{ user_id }}";
+    const userId = "{{ user_id }}";
+
+    try {
         const response = await fetch(`/get-data/${userId}`);
         const data = await response.json();
+
+        const predictionResponse = await fetch(`/predict/${userId}`);
+        const predictionData = await predictionResponse.json();
+
+        const actual = Number(
+            data.actual ||
+            data.monthly_actual ||
+            0
+        );
+
+        const predicted = Number(
+            data.predicted ||
+            predictionData.monthly_bill ||
+            0
+        );
+
         const lang = localStorage.getItem('selectedLanguage') || 'en';
         const t = translations[lang] || translations['en'];
 
         const canvas = document.getElementById("usageChart");
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        canvas.parentElement.style.height = "350px";
 
-        if(window.myChart) window.myChart.destroy();
-        const textColor = getComputedStyle(document.body).getPropertyValue('--text-color');
-        const accentColor = getComputedStyle(document.body).getPropertyValue('--accent-color');
-        
+        if (!canvas) {
+            console.error("usageChart canvas not found");
+            return;
+        }
+
+        const ctx = canvas.getContext("2d");
+
+        if (window.myChart) {
+            window.myChart.destroy();
+        }
+
+        const textColor =
+            getComputedStyle(document.body)
+                .getPropertyValue('--text-color')
+                .trim();
+
+        const accentColor =
+            getComputedStyle(document.body)
+                .getPropertyValue('--accent-color')
+                .trim();
+
         window.myChart = new Chart(ctx, {
             type: "bar",
+
             data: {
-                labels: [t['monthly_usage_label'] || "Monthly Usage"],
+                labels: [
+                    t['monthly_usage_label'] || "Monthly Bill"
+                ],
+
                 datasets: [
-                    { label: t['predicted_label'] || "Predicted Bill", data: [data.predicted], backgroundColor: accentColor, borderRadius: 6, barThickness: 50 },
-                    { label: t['actual_label'] || "Actual Bill", data: [data.actual], backgroundColor: "#f59e0b", borderRadius: 6, barThickness: 50 }
+                    {
+                        label:
+                            t['predicted_label'] ||
+                            "Predicted Bill",
+
+                        data: [predicted],
+
+                        backgroundColor: accentColor,
+
+                        borderRadius: 6,
+
+                        barThickness: 50
+                    },
+
+                    {
+                        label:
+                            t['actual_label'] ||
+                            "Actual Bill",
+
+                        data: [actual],
+
+                        backgroundColor: "#f59e0b",
+
+                        borderRadius: 6,
+
+                        barThickness: 50
+                    }
                 ]
             },
+
             options: {
-                responsive: true, maintainAspectRatio: false,
+                responsive: true,
+
+                maintainAspectRatio: false,
+
                 scales: {
-                    y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: textColor } },
-                    x: { grid: { display: false }, ticks: { color: textColor } }
+                    y: {
+                        beginAtZero: true,
+
+                        ticks: {
+                            color: textColor
+                        },
+
+                        grid: {
+                            color: 'rgba(255,255,255,0.05)'
+                        }
+                    },
+
+                    x: {
+                        ticks: {
+                            color: textColor
+                        },
+
+                        grid: {
+                            display: false
+                        }
+                    }
                 },
-                plugins: { legend: { position: 'top', labels: { color: textColor, font: { family: 'Inter' } } } }
+
+                plugins: {
+                    legend: {
+                        position: "top",
+
+                        labels: {
+                            color: textColor
+                        }
+                    }
+                }
             }
         });
 
-        const breakdownCanvas = document.getElementById("breakdownChart");
-        if (!breakdownCanvas) return;
-        const breakdownCtx = breakdownCanvas.getContext("2d");
-        breakdownCanvas.parentElement.style.height = "300px";
+        /* ---------------- BILL COMPARISON ---------------- */
 
-        if (window.breakdownChartInstance) window.breakdownChartInstance.destroy();
-        const appliances = data.appliances || [];
-        if (appliances.length > 0) {
-            document.getElementById("noBreakdownData").style.display = "none";
-            document.getElementById("breakdownChart").style.display = "block";
-            const labels = appliances.map(a => a.name);
-            const values = appliances.map(a => a.cost);
-            const totalCost = values.reduce((a, b) => a + b, 0);
-            document.getElementById("totalBreakdownCost").innerText = "₹" + Math.round(totalCost);
+        const actualBillElement =
+            document.getElementById("actualBill");
 
-            window.breakdownChartInstance = new Chart(breakdownCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'],
-                        borderWidth: 0, cutout: '75%'
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right', labels: { color: textColor, font: { family: 'Inter' } } } }
-                }
-            });
-        } else {
-            document.getElementById("noBreakdownData").style.display = "block";
-            document.getElementById("breakdownChart").style.display = "none";
-            document.getElementById("totalBreakdownCost").innerText = "₹0";
+        const predictedBillElement =
+            document.getElementById("predictedBillCmp");
+
+        const billMessage =
+            document.getElementById("billMessage");
+
+        if (actualBillElement) {
+            actualBillElement.innerText =
+                actual.toFixed(2);
         }
 
-        let msg = data.actual > data.predicted ? (t['usage_increasing'] || "⚠️ Usage Exceeding Predictions") : (data.actual < data.predicted ? (t['usage_decreasing'] || "✅ Usage Within Budget") : (t['usage_stable'] || "➖ Usage Stable"));
-        let trendEl = document.getElementById("trendMessage");
-        trendEl.innerText = msg;
-        trendEl.style.color = data.actual > data.predicted ? "#ef4444" : (data.actual < data.predicted ? "#10b981" : "inherit");
-    }
+        if (predictedBillElement) {
+            predictedBillElement.innerText =
+                predicted.toFixed(2);
+        }
 
+        if (billMessage) {
+
+            if (actual > predicted) {
+
+                billMessage.innerText =
+                    "⚠️ You are using more than expected";
+
+                billMessage.style.color = "#ef4444";
+
+            } else if (actual < predicted) {
+
+                billMessage.innerText =
+                    "✅ Your usage is under control";
+
+                billMessage.style.color = "#10b981";
+
+            } else {
+
+                billMessage.innerText =
+                    "ℹ️ Your actual and predicted bills are almost the same";
+
+                billMessage.style.color = "#f59e0b";
+            }
+        }
+
+        /* ---------------- APPLIANCE BREAKDOWN ---------------- */
+
+        const breakdownCanvas =
+            document.getElementById("breakdownChart");
+
+        if (!breakdownCanvas) {
+            return;
+        }
+
+        const breakdownCtx =
+            breakdownCanvas.getContext("2d");
+
+        if (window.breakdownChartInstance) {
+            window.breakdownChartInstance.destroy();
+        }
+
+        const appliances =
+            Array.isArray(data.appliances)
+                ? data.appliances
+                : [];
+
+        const noData =
+            document.getElementById("noBreakdownData");
+
+        const totalCost =
+            document.getElementById("totalBreakdownCost");
+
+        if (appliances.length === 0) {
+
+            if (noData) {
+                noData.style.display = "block";
+            }
+
+            breakdownCanvas.style.display = "none";
+
+            if (totalCost) {
+                totalCost.innerText = "₹0";
+            }
+
+        } else {
+
+            if (noData) {
+                noData.style.display = "none";
+            }
+
+            breakdownCanvas.style.display = "block";
+
+            const labels =
+                appliances.map(
+                    appliance => appliance.name
+                );
+
+            const values =
+                appliances.map(
+                    appliance => Number(appliance.cost || 0)
+                );
+
+            const total =
+                values.reduce(
+                    (sum, value) => sum + value,
+                    0
+                );
+
+            if (totalCost) {
+                totalCost.innerText =
+                    "₹" + Math.round(total);
+            }
+
+            window.breakdownChartInstance =
+                new Chart(breakdownCtx, {
+
+                    type: "doughnut",
+
+                    data: {
+                        labels: labels,
+
+                        datasets: [
+                            {
+                                data: values,
+
+                                backgroundColor: [
+                                    "#3b82f6",
+                                    "#10b981",
+                                    "#f59e0b",
+                                    "#ef4444",
+                                    "#8b5cf6",
+                                    "#ec4899",
+                                    "#06b6d4"
+                                ],
+
+                                borderWidth: 0,
+
+                                cutout: "75%"
+                            }
+                        ]
+                    },
+
+                    options: {
+                        responsive: true,
+
+                        maintainAspectRatio: false,
+
+                        plugins: {
+                            legend: {
+                                position: "right",
+
+                                labels: {
+                                    color: textColor
+                                }
+                            }
+                        }
+                    }
+                });
+        }
+
+        /* ---------------- TREND MESSAGE ---------------- */
+
+        const trendMessage =
+            document.getElementById("trendMessage");
+
+        if (trendMessage) {
+
+            if (actual > predicted) {
+
+                trendMessage.innerText =
+                    "⚠️ Usage Exceeding Predictions";
+
+                trendMessage.style.color =
+                    "#ef4444";
+
+            } else if (actual < predicted) {
+
+                trendMessage.innerText =
+                    "✅ Usage Within Budget";
+
+                trendMessage.style.color =
+                    "#10b981";
+
+            } else {
+
+                trendMessage.innerText =
+                    "➖ Usage Stable";
+
+                trendMessage.style.color =
+                    "inherit";
+            }
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Graph loading error:",
+            error
+        );
+    }
+}
+
+
+function loadConsumptionTrend() {
+
+    const userId = "{{ user_id }}";
+
+    fetch(`/get-data/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+
+            const actual =
+                Number(
+                    data.actual ||
+                    data.monthly_actual ||
+                    0
+                );
+
+            const predicted =
+                Number(
+                    data.predicted ||
+                    0
+                );
+
+            const message =
+                document.getElementById(
+                    "trendMessage"
+                );
+
+            if (!message) {
+                return;
+            }
+
+            if (actual > predicted) {
+
+                message.innerText =
+                    "⚠️ Your actual electricity usage is higher than predicted.";
+
+                message.style.color =
+                    "#ef4444";
+
+            } else if (actual < predicted) {
+
+                message.innerText =
+                    "✅ Your electricity usage is under control.";
+
+                message.style.color =
+                    "#10b981";
+
+            } else {
+
+                message.innerText =
+                    "ℹ️ Your actual and predicted usage are almost the same.";
+
+                message.style.color =
+                    "#f59e0b";
+            }
+
+        })
+        .catch(error => {
+
+            console.error(
+                "Consumption trend error:",
+                error
+            );
+
+        });
+}
+
+    
+
+            
     async function loadPrediction(){
         const userId = "{{ user_id }}";
         const response = await fetch(`/predict/${userId}`);
