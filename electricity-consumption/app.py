@@ -23,20 +23,37 @@ def smart_suggestions(appliances, monthly_bill):
     tips = []
 
     if monthly_bill > 2000:
-        tips.append("⚠ Reduce AC usage")
-        tips.append("💡 Switch to LED bulbs")
-        tips.append("🔌 Turn off standby devices")
-    elif monthly_bill > 1000:
-        tips.append("💡 Limit high power appliances usage")
-        tips.append("🔌 Unplug unused devices")
-    else:
-        tips.append("✅ Your usage is efficient")
-        tips.append("💡 Keep monitoring usage")
+        tips.append("🚨 Your predicted bill is high. Reduce high-power appliance usage.")
+        tips.append("❄️ Reduce AC usage by 1 hour per day.")
+        tips.append("💡 Replace frequently used bulbs with LED bulbs.")
+        tips.append("🔌 Switch off appliances completely instead of leaving them on standby.")
 
-    # appliance-based suggestion (IMPORTANT UPGRADE)
+    elif monthly_bill > 1000:
+        tips.append("⚠️ Your electricity usage is moderate.")
+        tips.append("💡 Reduce usage of high-power appliances during peak hours.")
+        tips.append("🔌 Unplug chargers and unused devices.")
+
+    else:
+        tips.append("✅ Your electricity usage is under control.")
+        tips.append("💡 Continue monitoring your monthly consumption.")
+
     if appliances:
-        max_app = max(appliances, key=lambda x: x[2])
-        tips.append(f"⚡ {max_app[1]} is consuming most power")
+        max_app = max(
+            appliances,
+            key=lambda x: x[2]
+        )
+
+        appliance_name = max_app[1]
+        appliance_units = max_app[2]
+
+        tips.append(
+            f"⚡ {appliance_name} is your highest-consuming appliance."
+        )
+
+        if appliance_units > 5:
+            tips.append(
+                f"💰 Try reducing {appliance_name} usage to save electricity."
+            )
 
     return tips
 
@@ -99,24 +116,43 @@ init_db()
 
 # ---------------- Email Alert ----------------
 def send_alert_email(to_email, amount, budget=None):
-    try:
-        msg = EmailMessage()
-        if budget and budget > 0:
-            content = f"⚠️ Alert! Your electricity bill (₹{amount:.2f}) has exceeded your monthly budget of ₹{budget:.2f}."
-        else:
-            content = f"⚠️ Alert! Your electricity bill is high: ₹{amount:.2f}"
-            
-        msg.set_content(content)
-        msg['Subject'] = "Electricity Bill Alert"
-        msg['From'] = "azmatchand9581@gmail.com"  
-        msg['To'] = to_email
+    def smart_suggestions(appliances, monthly_bill):
+    tips = []
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login("azmatchand9581@gmail.com", "wqjgmudiojmtlwhr")  # App password
-            smtp.send_message(msg)
-        print(f"Alert email sent to {to_email}!")
-    except Exception as e:
-        print("Email sending failed:", e)
+    if monthly_bill > 2000:
+        tips.append("🚨 Your predicted bill is high. Reduce high-power appliance usage.")
+        tips.append("❄️ Reduce AC usage by 1 hour per day.")
+        tips.append("💡 Replace frequently used bulbs with LED bulbs.")
+        tips.append("🔌 Switch off appliances completely instead of leaving them on standby.")
+
+    elif monthly_bill > 1000:
+        tips.append("⚠️ Your electricity usage is moderate.")
+        tips.append("💡 Reduce usage of high-power appliances during peak hours.")
+        tips.append("🔌 Unplug chargers and unused devices.")
+
+    else:
+        tips.append("✅ Your electricity usage is under control.")
+        tips.append("💡 Continue monitoring your monthly consumption.")
+
+    if appliances:
+        max_app = max(
+            appliances,
+            key=lambda x: x[2]
+        )
+
+        appliance_name = max_app[1]
+        appliance_units = max_app[2]
+
+        tips.append(
+            f"⚡ {appliance_name} is your highest-consuming appliance."
+        )
+
+        if appliance_units > 5:
+            tips.append(
+                f"💰 Try reducing {appliance_name} usage to save electricity."
+            )
+
+    return tips
 
 # ---------------- Login ----------------
 @app.route("/", methods=["GET", "POST"])
