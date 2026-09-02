@@ -441,10 +441,11 @@ def manual_entry():
     conn.close()
 
     return render_template("manual_page.html",
-                           user_id=user_id,
-                           units=units,
-                           amount=amount)
-    
+                       user_id=user_id,
+                       units=units,
+                       amount=amount,
+                       previous_reading=previous,
+                       current_reading=current)
 
 # ---------------- Prediction from Appliances ----------------
 @app.route("/predict/<int:user_id>")

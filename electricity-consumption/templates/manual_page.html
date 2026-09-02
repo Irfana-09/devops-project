@@ -30,6 +30,19 @@
     {% if amount %}
     <div class="result-box" style="text-align: center; background: rgba(59, 130, 246, 0.05); border-color: rgba(59, 130, 246, 0.1);">
         <h3 style="margin-bottom: 16px;"><i class="fas fa-calculator"></i> <span data-i18n="calculation_result">Calculation Result</span></h3>
+        <div style="margin-bottom: 12px; color: var(--secondary-text);">
+    Previous Reading:
+    <span style="font-weight: 700; color: var(--text-color);">
+        {{ previous_reading }} kWh
+    </span>
+</div>
+
+<div style="margin-bottom: 12px; color: var(--secondary-text);">
+    Current Reading:
+    <span style="font-weight: 700; color: var(--text-color);">
+        {{ current_reading }} kWh
+    </span>
+</div>
         <div style="margin-bottom: 12px; color: var(--secondary-text);"><span data-i18n="monthly_units">Units Consumed:</span> <span style="font-weight: 700; color: var(--text-color);">{{ units }} kWh</span></div>
         <div style="font-size: 0.9rem; color: var(--secondary-text); margin-bottom: 4px;" data-i18n="est_monthly_bill">Total Amount</div>
         <div style="font-size: 2rem; color: var(--accent-color); font-weight: 800; margin-bottom: 20px;">₹{{ amount }}</div>
