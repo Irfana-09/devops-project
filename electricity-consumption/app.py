@@ -117,26 +117,16 @@ init_db()
 # ---------------- Email Alert ----------------
 def send_alert_email(to_email, amount, budget=None):
     try:
-        msg = EmailMessage()
-
         if budget and budget > 0:
             content = f"⚠️ Alert! Your electricity bill (₹{amount:.2f}) has exceeded your monthly budget of ₹{budget:.2f}."
         else:
             content = f"⚠️ Alert! Your electricity bill is high: ₹{amount:.2f}"
 
-        msg.set_content(content)
-        msg['Subject'] = "Electricity Bill Alert"
-        msg['From'] = "azmatchand9581@gmail.com"
-        msg['To'] = to_email
-
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-            smtp.login("azmatchand9581@gmail.com", "wqjgmudiojmtlwhr")
-            smtp.send_message(msg)
-
-        print(f"Alert email sent to {to_email}!")
+        print(content)
+        print("Email alert is disabled for deployment.")
 
     except Exception as e:
-        print("Email sending failed:", e)
+        print("Email alert failed:", e)
 
 # ---------------- Login ----------------
 @app.route("/", methods=["GET", "POST"])
