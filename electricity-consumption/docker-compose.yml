@@ -1,0 +1,28 @@
+
+services:
+  voltwise:
+    build: .
+    image: voltwise:1.0
+    container_name: voltwise-app
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./users.db:/app/users.db
+      - ./static/uploads:/app/static/uploads
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: voltwise-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: voltwise-grafana
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

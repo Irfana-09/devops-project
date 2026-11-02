@@ -14,7 +14,12 @@ app.config['UPLOAD_FOLDER'] = 'static/uploads'
 ALERT_THRESHOLD = 2000  # ₹ threshold for sending alerts
 
 # If tesseract is not in your PATH, uncomment and set the path:
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+if os.name == "nt":
+    pytesseract.pytesseract.tesseract_cmd = (
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    )
+else:
+    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
